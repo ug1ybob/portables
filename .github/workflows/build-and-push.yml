@@ -40,4 +40,4 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.setup.outputs.tagged_image }}
           secrets: |
-            GH_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}"
