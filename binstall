@@ -1,0 +1,9 @@
+#!/bin/bash
+
+: "${binconfig:="$(pwd)/binlist"}"
+: "${binst:="$(pwd)/binst"}"
+
+while read -ra bindata; do
+  VERBOSE=1 "$binst" "${bindata[@]}";
+done < <(grep -v "#" "$binconfig")
+echo

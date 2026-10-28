@@ -1,0 +1,25 @@
+# syntax examples:
+#
+# tarball_url release_ver <binary_name_regex>
+# gh_owner/gh_repo gh_auto <binary_name_regex>
+#
+https://github.com/robxu9/bash-static/releases/download/5.2.015-1.2.3-2/bash-linux-x86_64 5.2-015
+sharkdp/bat gh_auto
+orhun/binsider gh_auto
+stunnel/static-curl gh_auto
+dandavison/delta gh_auto
+orisano/dlayer gh_auto
+bootandy/dust gh_auto
+eza-community/eza gh_auto
+sharkdp/fd gh_auto
+junegunn/fzf gh_auto
+eirikb/portable-git gh_auto
+gitbutlerapp/grit gh_auto
+https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-linux-amd64 1.8.2
+lsd-rs/lsd gh_auto
+BurntSushi/ripgrep gh_auto
+koalaman/shellcheck gh_auto
+LucasPickering/slumber gh_auto
+karol-broda/snitch gh_auto
+tree-sitter/tree-sitter gh_auto
+mikefarah/yq gh_auto .*yq.*

@@ -1,0 +1,106 @@
+#!/bin/bash
+
+: "${BINDIR:=$(pwd)/bin}"
+: "${BIN2DIR:=${BINDIR}/bin}"
+: "${DEBUG:=0}"
+: "${VERBOSE:=0}"
+: "${tmpdir:=$(mktemp -d binst.XXXXXXXXXX)}"
+
+name_regex="${3:-".*"}"
+
+trap cleanup SIGINT SIGTERM EXIT
+
+infomsg(){ [ "$DEBUG" -gt "0" ] && >&2 echo "[binst] I " "$@"; }
+
+cleanup() {
+  infomsg "Clean up"
+  rm -rf "$tmpdir"
+
+}
+
+gh_api_curl() {
+  if [ -z ${GH_TOKEN+x} ]; then
+    curl "$@"
+  else
+    curl \
+      --header "Authorization: Bearer ${GH_TOKEN}" \
+      --header "X-GitHub-Api-Version: 2022-11-28" \
+      "$@"
+  fi
+
+}
+
+gh_release_info() {
+  gh_api_curl -ksL "https://api.github.com/repos/${1}/releases/latest"
+
+}
+
+gh_version() {
+  echo -e "${1//$'\n'/\\n}" |awk -F'"' '/tag_name/{gsub("v","");print $4}'
+
+}
+
+gh_tarball() {
+  tb_list=$(echo -e "${1//$'\n'/\\n}" |awk -F'"' '/browser_.*(gz|zip|tbz|xz).$/{print $4}')
+  infomsg "$tb_list"
+  if [[ $(echo "$tb_list" |wc -l) -ge 2 ]]; then
+    echo "$tb_list" |grep -E 'inux' |grep -E 'x64|x86_64|amd64' |tail -1
+  else
+    echo "$tb_list"
+  fi
+
+}
+
+binfile_normalize() {
+  binfile="$1"
+  chmod +x "$binfile"
+  [[ "$binfile" != "${binfile%%-[0-9]*}" ]] && mv "$binfile" "${binfile%%-[0-9]*}"
+  [[ "$binfile" != "${binfile%%-linux*}" ]] && mv "$binfile" "${binfile%%-linux*}"
+}
+
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 tarball_url release_ver <binary_name_regex>";
+  echo "Usage: $0 gh_owner/gh_repo \"gh_auto\" <binary_name_regex>";
+  exit 1
+fi
+
+if [ "$2" == "gh_auto" ]; then
+  release_info="$(gh_release_info "$1")"
+  release_ver="$(gh_version "$release_info")"
+  tarball_url="$(gh_tarball "$release_info")"
+else
+  release_ver="$2"
+  tarball_url="$1"
+fi
+
+infomsg "$release_ver"
+infomsg "$tarball_url"
+
+status="x"
+curl --output-dir "$tmpdir" -C - -k -L -s -O "$tarball_url"
+if file "${tmpdir}/"* |grep -q ELF; then
+  binlist=("${tmpdir}/"*)
+  binfile="${binlist[0]}"
+  binfile_normalize "$binfile"
+elif file "${tmpdir}/"* |grep -qE "gzip.*, was "; then
+  gzlist=("${tmpdir}/"*)
+  gzfile="${gzlist[0]}"
+  gunzip "$gzfile"
+  binlist=("${tmpdir}/"*)
+  binfile="${binlist[0]}"
+  binfile_normalize "$binfile"
+else
+  bsdtar -C "$tmpdir" -xf "${tmpdir}/"*
+fi
+while read -r binary; do
+  binfile="$(basename "$binary")"
+  binfile="${binfile%%_*}"
+  if [ -f "${BIN2DIR}/${binfile}-${release_ver}" ]; then
+    status="."
+  else
+    mv -f "$binary" "${BIN2DIR}/${binfile}-${release_ver}"
+    ln -sf "bin/${binfile}-${release_ver}" "${BINDIR}/${binfile}"
+    status="o"
+  fi
+  [ "$VERBOSE" -gt "0" ] && echo -n "$status"
+done < <(find "$tmpdir" -executable -type f -regex "$name_regex")
